@@ -18,7 +18,7 @@ ABC Ignite is a Gym Management System designed to manage gym classes, bookings, 
  ├── main/
  │    ├── java/
  │    │    ├── com/
- │    │    │    ├── abcignitecms/              # Root package for the application
+ │    │    │    ├── abc-ignite/              # Root package for the application
  │    │    │    │    ├── config/               # Configuration classes (e.g., CORS, Beans, Properties)
  │    │    │    │    ├── controller/           # REST API controllers (handle HTTP requests)
  │    │    │    │    ├── dto/                  # Data Transfer Objects (used for request/response payloads)
@@ -79,14 +79,14 @@ Before deploying or testing the service, ensure you have the following installed
    - **POST** `/api/classes`
    - Request Body:
    ```json
-   {
-  "name": "Yoga Class",
-  "startDate": "2025-02-08",
-  "endDate": "2025-02-15",
-  "startTime": "10:00",
-  "duration": 60,
-  "capacity": 30
-  }
+    {
+        "name": "Yoga Class",
+        "startDate": "2025-02-08",
+        "endDate": "2025-02-15",
+        "startTime": "10:00",
+        "duration": 60,
+        "capacity": 30
+    }
    ```
    - Description: Create a new class with the specified parameters.
 
@@ -108,8 +108,8 @@ Before deploying or testing the service, ensure you have the following installed
    - **GET** `/api/search/bookings`
    - Parameters:
      - `memberName` (optional) - Search bookings by member name.
-     - `startDate` (optional) - Start date for search.
-     - `endDate` (optional) - End date for search.
+     - `startDate` (optional) - Start date for the search.
+     - `endDate` (optional) - End date for the search.
    - Example URL: `http://localhost:8080/api/bookings?memberName=Sai K`
    - Description: Search bookings by member or by a date range.
 
@@ -129,7 +129,7 @@ We have written unit tests for the services and controllers to ensure proper fun
    - **BookingServiceTest**: Tests for booking functionality.
    - **ClassServiceTest**: Tests for class creation functionality.
    - **BookingSearchServiceTest**: Tests for searching bookings by member and date range.
-   - **ClassControllerTest**: Tests for REST cntroller to validate APIs.
+   - **ClassControllerTest**: Tests for REST controller to validate APIs.
    - **Others**: Other tests for all the classes.
 
 ## Configuration
