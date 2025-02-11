@@ -110,7 +110,7 @@ Before deploying or testing the service, ensure you have the following installed
      - `memberName` (optional) - Search bookings by member name.
      - `startDate` (optional) - Start date for the search.
      - `endDate` (optional) - End date for the search.
-   - Example URL: `http://localhost:8080/api/bookings?memberName=Sai K`
+   - Example URL: `http://localhost:8080/api/search/bookings?memberName=Sai K`
    - Description: Search bookings by member or by a date range.
 
 ## Testing the Application
