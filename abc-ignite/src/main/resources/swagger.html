@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Payments API Docs</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swagger-ui-dist/swagger-ui.css" />
+  <style>
+    body { margin: 0; font-family: sans-serif; }
+    .logo-container {
+      text-align: center;
+      margin: 20px 0;
+    }
+    .logo-container img {
+      width: 200px;
+    }
+    .topbar { display: none !important; }
+  </style>
+</head>
+<body>
+  <div class="logo-container">
+    <img src="https://raw.githubusercontent.com/kollampst/ABCIgniteGMS/main/abc-ignite/src/main/resources/idzIiOOk35_1751455858359.png" alt="Logo">
+  </div>
+  <div id="swagger-ui"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/swagger-ui-dist/swagger-ui-bundle.js"></script>
+  <script>
+    SwaggerUIBundle({
+      url: "https://raw.githubusercontent.com/kollampst/ABCIgniteGMS/main/abc-ignite/src/main/resources/PaymentsOpenSpec.yaml",
+      dom_id: '#swagger-ui',
+      deepLinking: true,
+      layout: "BaseLayout"
+    });
+  </script>
+</body>
+</html>
+
