@@ -1,0 +1,840 @@
+openapi: 3.0.3
+info:
+  title: Payment Processing API
+  version: 1.0.0
+  description: |
+    ## Introduction
+
+    API-first approach of RCM platform exposes functionality to its clients via a set of REST-full APIs. Domain driven design groups those APIs by particular functional areas, while hiding implementation details and internal architecture of the platform. The sections below provide a brief overview of API guidelines and major platform domains.
+
+    ### Authentication
+
+    Authentication to the API is always done through a bearer token. For details on obtaining a token, see [Authentication Documentation](https://secure.dev.30preprod.com/api/secure-authorization/docs/index.html). The token should be presented to the API through an Authorization header.
+
+    ```text
+    Authorization: Bearer {TOKEN_VALUE}
+    ```
+
+    ### Errors
+
+    ABC uses conventional HTTP response codes to indicate the success or failure of an API request. In general, codes in the 2xx range indicate success, codes in the 4xx range indicate an error that failed given the information provided (e.g., a required parameter was omitted, an event failed, etc.), and codes in the 5xx range indicate an error with ABC’s servers (these are rare).
+
+    ### Error Response Examples
+
+    #### 200 OK with Partial Failure (Bulk APIs)
+    For bulk APIs, a 200 response may include both successful and failed items. Failed items will have an `errors` array at the item level:
+
+    ```json
+    {
+      "responses": [
+        {
+          "referenceId": "...",
+          "status": "SUCCESS"
+          // ...other fields...
+        },
+        {
+          "referenceId": "...",
+          "status": "ERROR",
+          "errors": [
+            {
+              "code": "chargeRequest_tokenId_invalid",
+              "message": "tokenId must not be null",
+              "param": "tokenId"
+            }
+          ]
+        }
+      ]
+    }
+    ```
+
+    #### 500 Internal Server Error
+
+    ```json
+    {
+      "statusCode": "INTERNAL_SERVER_ERROR",
+      "errors": [
+        {
+          "code": "internal.server",
+          "message": "Internal server error"
+        }
+      ]
+    }
+    ```
+
+
+    #### 400 Bad Request (Empty List)
+
+    ```json
+    {
+      "statusCode": "BAD_REQUEST",
+      "errors": [
+        {
+          "message": "Request list cannot be empty"
+        }
+      ]
+    }
+    ```
+
+    ### Request/Response Overview
+    #### Schema
+    All data is sent and received as JSON. Blank fields are omitted from the response. All timestamps return in ISO 8601 format YYYY-MM-DDTHH:MM:SSZ
+
+    #### HTTP Verbs
+    | Verb   | Description                                                                 |
+    |--------|-----------------------------------------------------------------------------|
+    | POST   | Used for creating resources and various relationships between resources.   |
+    
+    
+    #### Request Headers
+    | Header                          | Description                                                                                     |
+    |---------------------------------|-------------------------------------------------------------------------------------------------|
+    | Authorization: Bearer dbcfb1ab-9096-44b3-8583-a20b4e103641  | Bearer token used to authenticate and authorize the request                              |
+    | Content-Type: application/json;charset=UTF-8  | Should always be JSON, used to specify the content type of the request body                    |
+    | Accept: application/json;charset=UTF-8        | Should always be JSON, can also be used to request a specific version of the response schema    |
+    | Accept-Language: en-US          | Language API will use to generate application constants like error messages. Defaults to en-US. |
+
+    #### Response Headers
+    | Header  | Description                                      |
+    |---------|--------------------------------------------------|
+    | Warning | Will display API warnings, including deprecation notices. |
+
+    #### Standard Request Responses
+    | HTTP Code | Description                                                                 |
+    |-----------|-----------------------------------------------------------------------------|
+    | 200       | Successfully processed the request.                                        |
+    | 400       | Invalid data types or broken business rules, majority of validation errors |
+    | 401       | Attempt to access a resource without proper credentials                   |
+    | 403       | Attempt to access a resource with credentials that lack permission        |
+    | 404       | Attempt to access a resource that does not exist                          |
+    | 500       | Any uncaught server-side exception. Should not happen under normal flows. |
+    | 503       | Service is either down for maintenance or an internal dependency is down. |
+
+    #### Typical POST Request Responses
+    | HTTP Code | Description                                                                 |
+    |-----------|-----------------------------------------------------------------------------|
+    | 200       | Successfully processed the request. For bulk APIs, 200 is returned for both full and partial success. |
+    | 400       | Invalid data types or broken business rules, majority of validation errors |
+    | 401       | Attempt to access a resource without proper credentials                   |
+    | 403       | Attempt to access a resource with credentials that lack permission        |
+    | 404       | Attempt to access a resource that does not exist                          |
+    | 500       | Any uncaught server-side exception. Should not happen under normal flows. |
+    | 503       | Service is either down for maintenance or an internal dependency is down. |
+
+servers:
+  - url: https://secure.qa.30preprod.com/api/abcpg
+    description: QA server
+  - url: https://secure.dev.30preprod.com/api/abcpg
+    description: Dev server
+  - url: http://localhost:9180/abcpg
+    description: Local server
+
+paths:
+  /charges:
+    post:
+      tags:
+        - Payments
+      summary: Process charge transactions
+      description: |
+        This API processes multiple charge transactions in a single request. Clients can submit a `ChargeRequest` payload containing transaction details such as merchant information, amount, and payment token. The API validates the request, processes the charges in bulk, and returns a response with the status of each transaction.
+      operationId: processCharge
+      parameters:
+        - name: Prefer
+          in: header
+          description: Preference header for response handling
+          required: false
+          schema:
+            type: string
+            enum: [ respond-async, return=minimal, return=representation ]
+        - name: Authorization
+          in: header
+          description: |
+            Bearer token used to authenticate and authorize the request.
+            Example: Bearer {TOKEN_VALUE}
+          required: true
+          schema:
+            type: string
+        - name: TENANT-ID
+          in: header
+          description: Tenant identifier
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChargeRequest'
+            example:
+              requests:
+                - amount: "10000"
+                  referenceId: "123e4567-e89b-12d3-a456-426614174000"
+                  tokenId: "987fcdeb-51a2-43d1-9f12-345678901234"
+                  terminalId: "987fcdeb-51a2-43d1-9f12-3456789012345"
+                  effectiveDate: "2025-06-11"
+                  merchantAccountRelated: true
+                  descriptor: "Purchase at Example Store"
+                  metadata:
+                    orderId: "ORD-12345"
+                    customerId: "CUST-67890"
+      responses:
+        '200':
+          description: |
+            Charge processed successfully.
+            
+            - If all requests are successful, see the `fullSuccess` example below.
+            - If some requests fail, see the `partialFailure` example below.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChargeResponse'
+              examples:
+                fullSuccess:
+                  summary: All charges processed successfully
+                  value:
+                    responses:
+                      - referenceId: "e36bde41-6d33-4aad-9a86-d4f5baeae424"
+                        tokenId: "11f03ba8-1599-7b8e-a13f-711040a356e2"
+                        terminalId: "11f04dae-516b-743e-b0bc-c30f340f3fec"
+                        merchantAccountRelated: false
+                        descriptor: "Charge Request 2"
+                        metadata:
+                          uniqueTransactionId: "LO2517400001506"
+                          max: 99999
+                          digits: 3
+                          payor-account-number: "999333444"
+                        transactionId: "11f0502d-73ae-79f1-95b8-e5d4fb57e1b4"
+                        status: SUCCESS
+                        amount: 2000
+                partialFailure:
+                  summary: Partial failure in charge requests
+                  value:
+                    responses:
+                      - referenceId: "0c53134b-b09e-4db9-bfbf-6f2594c4eadc"
+                        tokenId: "11f03ba8-1599-7b8e-a13f-711040a356e2"
+                        descriptor: "Charge Request 1"
+                        metadata:
+                          digits: 3
+                          max: 99999
+                          payor-account-number: "999333444"
+                        status: ERROR
+                        errors:
+                          - code: "request_invalid"
+                            message: "amount must be greater than or equal to 0"
+                        amount: -1000
+                      - referenceId: "e36bde41-6d33-4aad-9a86-d4f5baeae424"
+                        tokenId: "11f03ba8-1599-7b8e-a13f-711040a356e2"
+                        terminalId: "11f04dae-516b-743e-b0bc-c30f340f3fec"
+                        merchantAccountRelated: false
+                        descriptor: "Charge Request 2"
+                        metadata:
+                          uniqueTransactionId: "LO2517400001506"
+                          max: 99999
+                          digits: 3
+                          payor-account-number: "999333444"
+                        transactionId: "11f0502d-73ae-79f1-95b8-e5d4fb57e1b4"
+                        status: SUCCESS
+                        amount: 2000
+        '400':
+          description: Bad request - validation errors
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                emptyList:
+                  summary: List is empty
+                  value:
+                    statusCode: "BAD_REQUEST"
+                    errors:
+                      - code: "requests.list.invalid"
+                        message: "list is empty, please provide atleast 1 request"
+                invalidUUID:
+                  summary: Invalid UUID in tokenId
+                  value:
+                    statusCode: "BAD_REQUEST"
+                    errors:
+                      - code: "chargerequest.requests.null.tokenId.invalid"
+                        message: "Unable to parse field chargerequest.requests.null.tokenId: Cannot deserialize value of type `java.util.UUID` from String \"11f03ba8-1599-7b8e-a13f-711040a356e2k\": UUID has to be represented by standard 36-char representation"
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /deposit:
+    post:
+      tags:
+        - Payments
+      summary: Process deposit transactions
+      description: |
+        This API processes multiple deposit transactions in a single request. Clients can submit a `DepositRequest` payload with details like merchant information, deposit amount, and payment token. The API validates the input, processes the deposits in bulk, and returns a response with the status of each deposit.
+      operationId: processDeposit
+      parameters:
+        - name: Prefer
+          in: header
+          description: Preference header for response handling
+          required: false
+          schema:
+            type: string
+            enum: [ respond-async, return=minimal, return=representation ]
+        - name: Authorization
+          in: header
+          description: |
+            Bearer token used to authenticate and authorize the request.
+            Example: Bearer {TOKEN_VALUE}
+          required: true
+          schema:
+            type: string
+        - name: TENANT-ID
+          in: header
+          description: |
+            Tenant identifier
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DepositRequest'
+            example:
+              requests:
+                - amount: "50000"
+                  referenceId: "123e4567-e89b-12d3-a456-426614174001"
+                  tokenId: "987fcdeb-51a2-43d1-9f12-345678901235"
+                  terminalId: "987fcdeb-51a2-43d1-9f12-345678901237"
+                  effectiveDate: "2025-06-11"
+                  merchantAccountRelated: false
+                  descriptor: "Deposit to merchant account"
+                  metadata:
+                    batchId: "BATCH-789"
+      responses:
+        '200':
+          description: |
+            Charge processed successfully.
+
+            - If all requests are successful, see the `fullSuccess` example below.
+            - If some requests fail, see the `partialFailure` example below.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DepositResponse'
+              examples:
+                fullSuccess:
+                  summary: All deposits processed successfully
+                  value:
+                    responses:
+                      - referenceId: "d1bde41a-6d33-4aad-9a86-d4f5baeae425"
+                        tokenId: "21f03ba8-1599-7b8e-a13f-711040a356e2"
+                        terminalId: "21f04dae-516b-743e-b0bc-c30f340f3fec"
+                        merchantAccountRelated: true
+                        descriptor: "Deposit Request 1"
+                        metadata:
+                          batchId: "BATCH-123"
+                        transactionId: "21f0502d-73ae-79f1-95b8-e5d4fb57e1b4"
+                        status: SUCCESS
+                        amount: 5000
+                partialFailure:
+                  summary: Partial failure in deposit requests
+                  value:
+                    responses:
+                      - referenceId: "d1bde41a-6d33-4aad-9a86-d4f5baeae425"
+                        tokenId: "21f03ba8-1599-7b8e-a13f-711040a356e2"
+                        descriptor: "Deposit Request 1"
+                        metadata:
+                          batchId: "BATCH-123"
+                        status: ERROR
+                        errors:
+                          - code: "deposit_invalid"
+                            message: "amount must be greater than or equal to 0"
+                        amount: -500
+                      - referenceId: "d2bde41a-6d33-4aad-9a86-d4f5baeae426"
+                        tokenId: "22f03ba8-1599-7b8e-a13f-711040a356e2"
+                        terminalId: "22f04dae-516b-743e-b0bc-c30f340f3fec"
+                        merchantAccountRelated: false
+                        descriptor: "Deposit Request 2"
+                        metadata:
+                          batchId: "BATCH-124"
+                        transactionId: "22f0502d-73ae-79f1-95b8-e5d4fb57e1b5"
+                        status: SUCCESS
+                        amount: 10000
+        '400':
+          description: Bad request - validation errors
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                emptyList:
+                  summary: List is empty
+                  value:
+                    statusCode: "BAD_REQUEST"
+                    errors:
+                      - code: "requests.list.invalid"
+                        message: "list is empty, please provide atleast 1 request"
+                invalidUUID:
+                  summary: Invalid UUID in tokenId
+                  value:
+                    statusCode: "BAD_REQUEST"
+                    errors:
+                      - code: "depositrequest.requests.null.tokenId.invalid"
+                        message: "Unable to parse field depositrequest.requests.null.tokenId: Cannot deserialize value of type `java.util.UUID` from String \"21f03ba8-1599-7b8e-a13f-711040a356e2k\": UUID has to be represented by standard 36-char representation"
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /refund:
+    post:
+      tags:
+        - Payments
+      summary: Process refund transactions
+      description: |
+        This API processes multiple refund transactions in a single request. Clients can submit a `RefundRequest` payload containing refund details such as merchant information, refund amount, and payment token. The API validates the request, processes the refunds in bulk, and returns a response with the status of each refund.
+      operationId: processRefund
+      parameters:
+        - name: Prefer
+          in: header
+          description: Preference header for response handling
+          required: false
+          schema:
+            type: string
+            enum: [ respond-async, return=minimal, return=representation ]
+        - name: Authorization
+          in: header
+          description: |
+            Bearer token used to authenticate and authorize the request.
+            Example: Bearer {TOKEN_VALUE}
+          required: true
+          schema:
+            type: string
+        - name: TENANT-ID
+          in: header
+          description: Tenant identifier
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefundRequest'
+            example:
+              requests:
+                - amount: "2500"
+                  referenceId: "123e4567-e89b-12d3-a456-426614174002"
+                  tokenId: "987fcdeb-51a2-43d1-9f12-345678901236"
+                  terminalId: "987fcdeb-51a2-43d1-9f12-345678901237"
+                  effectiveDate: "2025-06-11"
+                  merchantAccountRelated: true
+                  descriptor: "Refund for order #12345"
+                  metadata:
+                    originalOrderId: "ORD-12345"
+                    reason: "customer_request"
+      responses:
+        '200':
+          description: |
+            Charge processed successfully.
+
+            - If all requests are successful, see the `fullSuccess` example below.
+            - If some requests fail, see the `partialFailure` example below.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RefundResponse'
+              examples:
+                fullSuccess:
+                  summary: All refunds processed successfully
+                  value:
+                    responses:
+                      - referenceId: "f1bde41a-6d33-4aad-9a86-d4f5baeae427"
+                        tokenId: "31f03ba8-1599-7b8e-a13f-711040a356e2"
+                        terminalId: "31f04dae-516b-743e-b0bc-c30f340f3fec"
+                        merchantAccountRelated: true
+                        descriptor: "Refund Request 1"
+                        metadata:
+                          originalOrderId: "ORD-12345"
+                        transactionId: "31f0502d-73ae-79f1-95b8-e5d4fb57e1b6"
+                        status: SUCCESS
+                        amount: 1500
+                partialFailure:
+                  summary: Partial failure in refund requests
+                  value:
+                    responses:
+                      - referenceId: "f1bde41a-6d33-4aad-9a86-d4f5baeae427"
+                        tokenId: "31f03ba8-1599-7b8e-a13f-711040a356e2"
+                        descriptor: "Refund Request 1"
+                        metadata:
+                          originalOrderId: "ORD-12345"
+                        status: ERROR
+                        errors:
+                          - code: "refund_invalid"
+                            message: "amount must be greater than or equal to 0"
+                        amount: -1500
+                      - referenceId: "f2bde41a-6d33-4aad-9a86-d4f5baeae428"
+                        tokenId: "32f03ba8-1599-7b8e-a13f-711040a356e2"
+                        terminalId: "32f04dae-516b-743e-b0bc-c30f340f3fec"
+                        merchantAccountRelated: false
+                        descriptor: "Refund Request 2"
+                        metadata:
+                          originalOrderId: "ORD-12346"
+                        transactionId: "32f0502d-73ae-79f1-95b8-e5d4fb57e1b7"
+                        status: SUCCESS
+                        amount: 3000
+        '400':
+          description: Bad request - validation errors
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                emptyList:
+                  summary: List is empty
+                  value:
+                    statusCode: "BAD_REQUEST"
+                    errors:
+                      - code: "requests.list.invalid"
+                        message: "list is empty, please provide atleast 1 request"
+                invalidUUID:
+                  summary: Invalid UUID in tokenId
+                  value:
+                    statusCode: "BAD_REQUEST"
+                    errors:
+                      - code: "refundrequest.requests.null.tokenId.invalid"
+                        message: "Unable to parse field refundrequest.requests.null.tokenId: Cannot deserialize value of type `java.util.UUID` from String \"31f03ba8-1599-7b8e-a13f-711040a356e2k\": UUID has to be represented by standard 36-char representation"
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    # Base Request Schema
+    PaymentRequestItem:
+      type: object
+      x-is-abstract: true
+      required:
+        - amount
+        - tokenId
+        - terminalId
+        - descriptor
+        - referenceId
+      properties:
+        amount:
+          type: integer
+          format: int64
+          minimum: 0
+          description: Transaction amount in smallest currency unit (e.g., cents) - must be positive or zero
+        referenceId:
+          type: string
+          format: uuid
+          description: Reference identifier for the transaction
+        tokenId:
+          type: string
+          format: uuid
+          description: Token identifier for the payment method
+        terminalId:
+          type: string
+          format: uuid
+          description: Terminal identifier
+        effectiveDate:
+          type: string
+          format: date
+          description: Effective date for the transaction
+        merchantAccountRelated:
+          type: boolean
+          description: Whether the transaction is merchant account related
+        descriptor:
+          type: string
+          maxLength: 80
+          minLength: 1
+          description: Short description for customer statement
+        metadata:
+          type: object
+          additionalProperties: true
+          description: Additional metadata for the transaction
+
+#      discriminator:
+#        propertyName: PaymentAction
+#        mapping:
+#          charge: '#/components/schemas/ChargeRequestItem'
+#          deposit: '#/components/schemas/DepositRequestItem'
+#          refund: '#/components/schemas/RefundRequestItem'
+
+    # Request Schemas
+    ChargeRequest:
+      type: object
+      required:
+        - requests
+      properties:
+        requests:
+          type: array
+          items:
+            $ref: '#/components/schemas/ChargeRequestItem'
+          minItems: 1
+          maxItems: 200
+          description: Maximum of 200 transactions allowed per request
+
+    ChargeRequestItem:
+      allOf:
+        - $ref: '#/components/schemas/PaymentRequestItem'
+        - type: object
+          description: Charge request item extending PaymentRequestItem
+      x-parent-class: PaymentRequestItem
+
+    DepositRequest:
+      type: object
+      required:
+        - requests
+      properties:
+        requests:
+          type: array
+          items:
+            $ref: '#/components/schemas/DepositRequestItem'
+          minItems: 1
+          maxItems: 200
+          description: Maximum of 200 transactions allowed per request
+
+    DepositRequestItem:
+      allOf:
+        - $ref: '#/components/schemas/PaymentRequestItem'
+        - type: object
+          description: Deposit request item extending PaymentRequestItem
+
+    RefundRequest:
+      type: object
+      required:
+        - requests
+      properties:
+        requests:
+          type: array
+          items:
+            $ref: '#/components/schemas/RefundRequestItem'
+          minItems: 1
+          description: List of refund requests
+
+    RefundRequestItem:
+      allOf:
+        - $ref: '#/components/schemas/PaymentRequestItem'
+        - type: object
+          description: Refund request item extending PaymentRequestItem
+
+    # Base Response Schema
+    PaymentResponseItem:
+      type: object
+      x-is-abstract: true
+      required:
+        - tokenId
+        - terminalId
+        - descriptor
+        - transactionId
+        - status
+        - amount
+        - referenceId
+      properties:
+        amount:
+          type: integer
+          format: int64
+          minimum: 0
+          description: Transaction amount in smallest currency unit - must be positive or zero
+        referenceId:
+          type: string
+          format: uuid
+          description: Reference identifier for the transaction
+        tokenId:
+          type: string
+          format: uuid
+          description: Token identifier for the payment method
+        terminalId:
+          type: string
+          format: uuid
+          description: Terminal identifier
+        effectiveDate:
+          type: string
+          format: date
+          description: Effective date for the transaction
+        merchantAccountRelated:
+          type: boolean
+          description: Whether the transaction is merchant account related
+        descriptor:
+          type: string
+          maxLength: 80
+          minLength: 1
+          description: Short description for customer statement
+        metadata:
+          type: object
+          additionalProperties: true
+          description: Additional metadata for the transaction
+        transactionId:
+          type: string
+          format: uuid
+          description: Unique transaction identifier
+        status:
+          $ref: '#/components/schemas/PaymentStatus'
+        errors:
+          type: array
+          items:
+            $ref: '#/components/schemas/ApiErrorResponse'
+          description: List of errors if any occurred
+#      discriminator:
+#        propertyName: type
+#        mapping:
+#          charge: '#/components/schemas/ChargeResponseItem'
+#          deposit: '#/components/schemas/DepositResponseItem'
+#          refund: '#/components/schemas/RefundResponseItem'
+
+
+    # Response Schemas
+    ChargeResponse:
+      type: object
+      required:
+        - responses
+      properties:
+        responses:
+          type: array
+          items:
+            $ref: '#/components/schemas/ChargeResponseItem'
+          minItems: 1
+          description: List of charge response items
+
+    ChargeResponseItem:
+      allOf:
+        - $ref: '#/components/schemas/PaymentResponseItem'
+        - type: object
+          description: Charge response item extending PaymentResponseItem
+      x-parent-class: PaymentResponseItem
+
+
+    DepositResponse:
+      type: object
+      required:
+        - responses
+      properties:
+        responses:
+          type: array
+          items:
+            $ref: '#/components/schemas/DepositResponseItem'
+          minItems: 1
+          description: List of deposit response items
+
+    DepositResponseItem:
+      allOf:
+        - $ref: '#/components/schemas/PaymentResponseItem'
+        - type: object
+          description: Deposit response item extending PaymentResponseItem
+
+    RefundResponse:
+      type: object
+      required:
+        - responses
+      properties:
+        responses:
+          type: array
+          items:
+            $ref: '#/components/schemas/RefundResponseItem'
+          minItems: 1
+          description: List of refund response items
+
+    RefundResponseItem:
+      allOf:
+        - $ref: '#/components/schemas/PaymentResponseItem'
+        - type: object
+          description: Refund response item extending PaymentResponseItem
+
+    # Enum Schemas
+    PaymentAction:
+      type: string
+      enum:
+        - CHARGE
+        - REFUND
+        - DEPOSIT
+      description: |
+        Payment action type:
+        * `CHARGE` - Debit transaction (batch action)
+        * `REFUND` - Credit transaction (batch action)
+        * `DEPOSIT` - Credit transaction (batch action)
+
+    PaymentStatus:
+      type: string
+      enum:
+        - SUCCESS
+        - FAILED
+        - ERROR
+
+      description: Status of the payment transaction
+      default: SUCCESS
+
+    ApiErrorCode:
+      type: string
+      enum:
+        - DUPLICATE_REQUEST
+        - REQUEST_INVALID
+        - NOT_FOUND
+        - INTERNAL_ERROR
+
+      description: Status of the Error Codes
+
+    # Error Schema
+    ApiErrorResponse:
+      type: object
+      required:
+        - code
+        - message
+
+      properties:
+        code:
+          type: string
+          description: Error code
+        message:
+          type: string
+          description: Error message
+
+
+    ErrorResponse:
+      type: object
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+          description: Timestamp when the error occurred
+        status:
+          type: integer
+          description: HTTP status code
+        error:
+          type: string
+          description: Error type
+        message:
+          type: string
+          description: Error message
+        path:
+          type: string
+          description: Request path that caused the error
+        errors:
+          type: array
+          items:
+            $ref: '#/components/schemas/ApiErrorResponse'
+          description: Detailed validation errors
+
+tags:
+  - name: Payments
+    description: Payment processing operations
