@@ -3,10 +3,6 @@ info:
   title: Payment Processing API - Github
   version: 1.0.0
   description: |
-    ## Introduction
-
-    API-first approach of RCM platform exposes functionality to its clients via a set of REST-full APIs. Domain driven design groups those APIs by particular functional areas, while hiding implementation details and internal architecture of the platform. The sections below provide a brief overview of API guidelines and major platform domains.
-
     ### Authentication
 
     Authentication to the API is always done through a bearer token. For details on obtaining a token, see [Authentication Documentation](https://secure.dev.30preprod.com/api/secure-authorization/docs/index.html). The token should be presented to the API through an Authorization header.
