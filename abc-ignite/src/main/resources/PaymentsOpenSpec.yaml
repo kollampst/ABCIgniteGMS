@@ -1,6 +1,6 @@
 openapi: 3.0.3
 info:
-  title: Payment Processing API
+  title: Payment Processing API - Github
   version: 1.0.0
   description: |
     ## Introduction
