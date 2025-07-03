@@ -1,6 +1,6 @@
-<div style="text-align: center;">
-  <img src="https://raw.githubusercontent.com/kollampst/ABCIgniteGMS/main/abc-ignite/src/main/resources/idzIiOOk35_1751455858359.png" alt="ABC Logo" width="200">
-</div>
+
+<img src="https://raw.githubusercontent.com/kollampst/ABCIgniteGMS/main/abc-ignite/src/main/resources/idzIiOOk35_1751455858359.png" alt="ABC Logo" width="200">
+
 
 ---
 
