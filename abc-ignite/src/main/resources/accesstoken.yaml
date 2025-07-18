@@ -1,0 +1,105 @@
+openapi: 3.0.3
+info:
+  title: ABC Auth Service
+  version: 1.0.0
+  description: API to create or refresh an access token.
+
+paths:
+  /oauth2/token:
+    post:
+      summary: Create or refresh an access token
+      operationId: createOrRefreshToken
+      tags:
+        - Authentication
+      parameters:
+        - name: x-abc-version
+          in: header
+          required: false
+          description: >
+            API version in the format vYYYY.QQ.BB (e.g., v2024.01.00). Default is v2024.01.00.
+          schema:
+            type: string
+            default: v2024.01.00
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - grant_type
+              properties:
+                grant_type:
+                  type: string
+                  enum: [client_credentials, refresh_token]
+                  description: >
+                    Type of grant being requested.
+                client_id:
+                  type: string
+                  description: >
+                    Client ID (optional if using HTTP Basic Auth).
+                client_secret:
+                  type: string
+                  description: >
+                    Client secret (optional if using HTTP Basic Auth).
+                refresh_token:
+                  type: string
+                  description: >
+                    Required when grant_type is `refresh_token`.
+                scope:
+                  type: string
+                  description: >
+                    Space-delimited list of scopes. Required when grant_type is `client_credentials`.
+      responses:
+        '200':
+          description: Access token created or refreshed successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - access_token
+                  - expires_in
+                  - refresh_token
+                  - scope
+                  - token_type
+                properties:
+                  access_token:
+                    type: string
+                    maxLength: 4096
+                    description: >
+                      Token used to authorize API requests.
+                  expires_in:
+                    type: integer
+                    format: int32
+                    description: >
+                      Number of seconds until the token expires.
+                  refresh_token:
+                    type: string
+                    maxLength: 4096
+                    description: >
+                      Token used to obtain a new access token.
+                  scope:
+                    type: string
+                    description: >
+                      Space-delimited list of authorized scopes.
+                  token_type:
+                    type: string
+                    enum: [Bearer]
+                    description: >
+                      Token type, always 'Bearer' as per RFC 6750.
+        '400':
+          description: Bad request (e.g., missing fields or invalid parameters).
+        '401':
+          description: Unauthorized (e.g., invalid client credentials).
+        '429':
+          description: Too Many Requests - rate limit exceeded.
+
+components:
+  securitySchemes:
+    BasicAuth:
+      type: http
+      scheme: basic
+
+security:
+  - BasicAuth: []
